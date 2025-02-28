@@ -1,10 +1,15 @@
 package com.claudiavharris.quoteapi;
 
+import java.util.logging.Logger;
+
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import java.util.logging.Logger;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api")  // This makes all endpoints start with /api
@@ -19,10 +24,16 @@ public class QuoteController {
         return ResponseEntity.ok("Quote API is running!");
     }
 
-    @PostMapping("/calculate-quote")  // Handles POST requests to "/api/calculate-quote"
-    public ResponseEntity<String> calculateQuote(@RequestBody QuoteRequest request) {
-        double quote = calculateInsuranceQuote(request.getAge(), request.getYears(), request.isAccidents());
-        return ResponseEntity.ok("Your insurance quote is: $" + quote);
+    @PostMapping("/calculate-quote")
+    public ResponseEntity<PremiumDetails> calculateQuote(@RequestBody QuoteRequest request) {
+        double basePremium = calculateInsuranceQuote(request.getAge(), request.getYears(), request.isAccidents());
+        double fullPaymentDiscount = basePremium * 0.95;
+        double downPayment = basePremium * 0.10;
+        double remainingBalance = basePremium - downPayment;
+        double monthlyPayment = remainingBalance / 6;
+
+        PremiumDetails details = new PremiumDetails(basePremium, fullPaymentDiscount, downPayment, remainingBalance, monthlyPayment);
+        return ResponseEntity.ok(details);
     }
 
     private double calculateInsuranceQuote(int age, int years, boolean hasAccidents) {

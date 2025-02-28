@@ -1,11 +1,33 @@
 package com.claudiavharris.quoteapp;
 
-import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import java.awt.*;
-import java.awt.event.*;
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.Font;
+import java.awt.GridLayout;
 import java.io.IOException;
-import okhttp3.*;
+
+import javax.swing.JButton;
+import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.JTextField;
+import javax.swing.SpinnerNumberModel;
+import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
+import javax.swing.border.EmptyBorder;
+
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
 public class QuoteCalculator extends JFrame {
     private JSpinner ageSpinner, drivingYearsSpinner;
@@ -13,7 +35,6 @@ public class QuoteCalculator extends JFrame {
     private JLabel basePremiumLabel, fullPaymentLabel, downPaymentLabel, remainingLabel, monthlyLabel, agentLabel;
     private JButton contactAgentButton, emailQuoteButton;
     private final OkHttpClient client = new OkHttpClient();
-    private static final String API_URL = "https://quote-api-claudia-4d1423dc8823.herokuapp.com/api/calculate-quote";
 
 
     public QuoteCalculator() {
