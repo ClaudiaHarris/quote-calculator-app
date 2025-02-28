@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="lib2">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/insurance-quote-calculator/lib/okio-3.6.0.jar!/" />
+      <root url="jar://$PROJECT_DIR$/insurance-quote-calculator/lib/okhttp-4.12.0.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>

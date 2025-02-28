@@ -1,0 +1,24 @@
+### Calculate Quote
+POST http://localhost:8080/calculate-quote
+Content-Type: application/json
+
+{
+  "age": 25,
+  "years": 5,
+  "accidents": false
+}
+
+### Email Quote
+POST http://localhost:8080/email-quote
+Content-Type: application/json
+
+{
+  "email": "claudiavharris@gmail.com",
+  "details": {
+    "basePremium": 500.0,
+    "fullPaymentDiscount": 475.0,
+    "downPayment": 50.0,
+    "remainingBalance": 450.0,
+    "monthlyPayment": 75.0
+  }
+}
