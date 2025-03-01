@@ -1,6 +1,5 @@
 package com.claudiavharris.quoteapp;
 
-import com.claudiavharris.shared.PremiumDetails;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -8,6 +7,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.IOException;
+
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -22,14 +22,20 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
+
+import com.claudiavharris.shared.EmailRequest;
+import com.claudiavharris.shared.PremiumDetails;
+import com.claudiavharris.shared.QuoteRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class QuoteCalculator extends JFrame {
+    private static final String API_BASE_URL = "https://quote-api-claudia-4d1423dc8823.herokuapp.com/api";
     private JSpinner ageSpinner, drivingYearsSpinner;
     private JCheckBox accidentCheckBox;
     private JLabel basePremiumLabel, fullPaymentLabel, downPaymentLabel, remainingLabel, monthlyLabel, agentLabel;
@@ -84,9 +90,14 @@ public class QuoteCalculator extends JFrame {
         }
         add(outputPanel, BorderLayout.CENTER);
 
-        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        JPanel buttonPanel = new JPanel(new GridLayout(2, 1, 5, 5)); // Change to 2 rows, 1 column
         buttonPanel.setBorder(new EmptyBorder(5, 10, 5, 10));
         buttonPanel.setBackground(new Color(220, 220, 220));
+
+        // Create a sub-panel for buttons
+        JPanel buttonsRow = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+        buttonsRow.setBackground(new Color(220, 220, 220));
+
         JButton calculateButton = new JButton("Calculate Quote");
         calculateButton.setPreferredSize(new Dimension(120, 30));
         calculateButton.setToolTipText("Calculate your insurance quote");
@@ -101,11 +112,19 @@ public class QuoteCalculator extends JFrame {
         emailQuoteButton.setToolTipText("Email your quote to yourself");
         emailQuoteButton.setEnabled(false);
 
+        // Add buttons to the buttons row
+        buttonsRow.add(calculateButton);
+        buttonsRow.add(contactAgentButton);
+        buttonsRow.add(emailQuoteButton);
+
+        // Setup agent label with proper sizing
         agentLabel = new JLabel("");
         agentLabel.setFont(new Font("Arial", Font.ITALIC, 12));
-        buttonPanel.add(calculateButton);
-        buttonPanel.add(contactAgentButton);
-        buttonPanel.add(emailQuoteButton);
+        agentLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        agentLabel.setPreferredSize(new Dimension(400, 20));
+
+        // Add components to button panel
+        buttonPanel.add(buttonsRow);
         buttonPanel.add(agentLabel);
         add(buttonPanel, BorderLayout.SOUTH);
 
@@ -123,26 +142,40 @@ public class QuoteCalculator extends JFrame {
             if (age < 0 || years < 0) throw new NumberFormatException();
             boolean hasAccidents = accidentCheckBox.isSelected();
 
-            String json = String.format("{\"age\":%d,\"years\":%d,\"accidents\":%b}", age, years, hasAccidents);
+            // Create QuoteRequest object and convert to JSON
+            QuoteRequest quoteRequest = new QuoteRequest();
+            quoteRequest.setAge(age);
+            quoteRequest.setYears(years);
+            quoteRequest.setAccidents(hasAccidents);
+            
+            ObjectMapper mapper = new ObjectMapper();
+            String json = mapper.writeValueAsString(quoteRequest);
+            
             RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
             Request request = new Request.Builder()
-                    .url("https://quote-api-claudia-4d1423dc8823.herokuapp.com/api/calculate-quote")
+                    .url(API_BASE_URL + "/calculate-quote")
                     .post(body)
                     .build();
             Response response = client.newCall(request).execute();
-
             String responseBody = response.body().string();
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
 
-            // Use Jackson to parse JSON response
-            ObjectMapper mapper = new ObjectMapper();
-            PremiumDetails details = mapper.readValue(responseBody, PremiumDetails.class);
+            if (!response.isSuccessful()) {
+                throw new IOException("API Error: " + responseBody);
+            }
 
-            basePremiumLabel.setText(String.format("Total Premium: $%.2f", details.getBasePremium()));
-            fullPaymentLabel.setText(String.format("Full Payment (5%% off): $%.2f", details.getFullPaymentDiscount()));
-            downPaymentLabel.setText(String.format("Down Payment (10%%): $%.2f", details.getDownPayment()));
-            remainingLabel.setText(String.format("Remaining Balance: $%.2f", details.getRemainingBalance()));
-            monthlyLabel.setText(String.format("6 Monthly Payments: $%.2f", details.getMonthlyPayment()));
+            // Check content type
+            String contentType = response.header("Content-Type", "");
+            if (contentType.contains("application/json")) {
+                // Parse JSON response
+                PremiumDetails details = mapper.readValue(responseBody, PremiumDetails.class);
+                updateLabels(details);
+            } else {
+                // Handle text response
+                // Expected format: "Your insurance quote is: $700.0"
+                String amount = responseBody.split("\\$")[1].trim();
+                double premium = Double.parseDouble(amount);
+                updateLabelsFromPremium(premium);
+            }
 
             agentLabel.setText("");
             contactAgentButton.setEnabled(true);
@@ -151,7 +184,29 @@ public class QuoteCalculator extends JFrame {
             agentLabel.setText("Error: " + ex.getMessage());
             contactAgentButton.setEnabled(false);
             emailQuoteButton.setEnabled(false);
+            ex.printStackTrace();
         }
+    }
+
+    private void updateLabels(PremiumDetails details) {
+        basePremiumLabel.setText(String.format("Total Premium: $%.2f", details.getBasePremium()));
+        fullPaymentLabel.setText(String.format("Full Payment (5%% off): $%.2f", details.getFullPaymentDiscount()));
+        downPaymentLabel.setText(String.format("Down Payment (10%%): $%.2f", details.getDownPayment()));
+        remainingLabel.setText(String.format("Remaining Balance: $%.2f", details.getRemainingBalance()));
+        monthlyLabel.setText(String.format("6 Monthly Payments: $%.2f", details.getMonthlyPayment()));
+    }
+
+    private void updateLabelsFromPremium(double premium) {
+        double fullPayment = premium * 0.95;
+        double downPayment = premium * 0.10;
+        double remaining = premium - downPayment;
+        double monthly = remaining / 6;
+
+        basePremiumLabel.setText(String.format("Total Premium: $%.2f", premium));
+        fullPaymentLabel.setText(String.format("Full Payment (5%% off): $%.2f", fullPayment));
+        downPaymentLabel.setText(String.format("Down Payment (10%%): $%.2f", downPayment));
+        remainingLabel.setText(String.format("Remaining Balance: $%.2f", remaining));
+        monthlyLabel.setText(String.format("6 Monthly Payments: $%.2f", monthly));
     }
 
     private void showAgentPrompt() {
@@ -244,29 +299,43 @@ public class QuoteCalculator extends JFrame {
                     JOptionPane.showMessageDialog(this, "Calculate a quote first!", "Error", JOptionPane.ERROR_MESSAGE);
                     return;
                 }
-                String json = String.format(
-                        "{\"email\":\"%s\",\"details\":{\"basePremium\":%.2f,\"fullPaymentDiscount\":%.2f,\"downPayment\":%.2f,\"remainingBalance\":%.2f,\"monthlyPayment\":%.2f}}",
-                        email,
-                        Double.parseDouble(basePremiumLabel.getText().split("\\$")[1]),
-                        Double.parseDouble(fullPaymentLabel.getText().split("\\$")[1]),
-                        Double.parseDouble(downPaymentLabel.getText().split("\\$")[1]),
-                        Double.parseDouble(remainingLabel.getText().split("\\$")[1]),
-                        Double.parseDouble(monthlyLabel.getText().split("\\$")[1])
-                );
+
+                // Create EmailRequest object
+                EmailRequest emailRequest = new EmailRequest();
+                emailRequest.setEmail(email);
+
+                // Create PremiumDetails object from labels
+                PremiumDetails details = new PremiumDetails();
+                details.setBasePremium(Double.parseDouble(basePremiumLabel.getText().split("\\$")[1]));
+                details.setFullPaymentDiscount(Double.parseDouble(fullPaymentLabel.getText().split("\\$")[1]));
+                details.setDownPayment(Double.parseDouble(downPaymentLabel.getText().split("\\$")[1]));
+                details.setRemainingBalance(Double.parseDouble(remainingLabel.getText().split("\\$")[1]));
+                details.setMonthlyPayment(Double.parseDouble(monthlyLabel.getText().split("\\$")[1]));
+
+                emailRequest.setDetails(details);
+
+                // Convert to JSON using ObjectMapper
+                ObjectMapper mapper = new ObjectMapper();
+                String json = mapper.writeValueAsString(emailRequest);
+
                 RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
                 Request request = new Request.Builder()
-                        .url("https://quote-api-claudia-4d1423dc8823.herokuapp.com/api/email-quote")
+                        .url(API_BASE_URL + "/email-quote")
                         .post(body)
                         .build();
+
                 Response response = client.newCall(request).execute();
                 String responseBody = response.body().string();
-                if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
+                
+                if (!response.isSuccessful()) throw new IOException("API Error: " + responseBody);
+                
                 JOptionPane.showMessageDialog(this, responseBody, "Email Sent", JOptionPane.INFORMATION_MESSAGE);
                 contactAgentButton.setEnabled(true);
                 emailQuoteButton.setEnabled(false);
                 break;
-            } catch (IOException ex) {
+            } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Error sending email: " + ex.getMessage(), "Email Error", JOptionPane.ERROR_MESSAGE);
+                ex.printStackTrace();
             }
         }
     }
