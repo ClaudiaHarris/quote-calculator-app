@@ -1,5 +1,6 @@
 package com.claudiavharris.quoteapp;
 
+import com.claudiavharris.shared.PremiumDetails;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -7,7 +8,6 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.GridLayout;
 import java.io.IOException;
-
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -22,12 +22,12 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.border.EmptyBorder;
-
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class QuoteCalculator extends JFrame {
     private JSpinner ageSpinner, drivingYearsSpinner;
@@ -35,7 +35,6 @@ public class QuoteCalculator extends JFrame {
     private JLabel basePremiumLabel, fullPaymentLabel, downPaymentLabel, remainingLabel, monthlyLabel, agentLabel;
     private JButton contactAgentButton, emailQuoteButton;
     private final OkHttpClient client = new OkHttpClient();
-
 
     public QuoteCalculator() {
         setTitle("Insurance Quote Calculator");
@@ -135,19 +134,15 @@ public class QuoteCalculator extends JFrame {
             String responseBody = response.body().string();
             if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
 
-            // Parse JSON response
-            String[] parts = responseBody.replace("{", "").replace("}", "").split(",");
-            double basePremium = Double.parseDouble(parts[0].split(":")[1]);
-            double fullPaymentDiscount = Double.parseDouble(parts[1].split(":")[1]);
-            double downPayment = Double.parseDouble(parts[2].split(":")[1]);
-            double remainingBalance = Double.parseDouble(parts[3].split(":")[1]);
-            double monthlyPayment = Double.parseDouble(parts[4].split(":")[1]);
+            // Use Jackson to parse JSON response
+            ObjectMapper mapper = new ObjectMapper();
+            PremiumDetails details = mapper.readValue(responseBody, PremiumDetails.class);
 
-            basePremiumLabel.setText(String.format("Total Premium: $%.2f", basePremium));
-            fullPaymentLabel.setText(String.format("Full Payment (5%% off): $%.2f", fullPaymentDiscount));
-            downPaymentLabel.setText(String.format("Down Payment (10%%): $%.2f", downPayment));
-            remainingLabel.setText(String.format("Remaining Balance: $%.2f", remainingBalance));
-            monthlyLabel.setText(String.format("6 Monthly Payments: $%.2f", monthlyPayment));
+            basePremiumLabel.setText(String.format("Total Premium: $%.2f", details.getBasePremium()));
+            fullPaymentLabel.setText(String.format("Full Payment (5%% off): $%.2f", details.getFullPaymentDiscount()));
+            downPaymentLabel.setText(String.format("Down Payment (10%%): $%.2f", details.getDownPayment()));
+            remainingLabel.setText(String.format("Remaining Balance: $%.2f", details.getRemainingBalance()));
+            monthlyLabel.setText(String.format("6 Monthly Payments: $%.2f", details.getMonthlyPayment()));
 
             agentLabel.setText("");
             contactAgentButton.setEnabled(true);
@@ -282,26 +277,4 @@ public class QuoteCalculator extends JFrame {
             frame.setVisible(true);
         });
     }
-}
-
-class PremiumDetails {
-    double basePremium, fullPaymentDiscount, downPayment, remainingBalance, monthlyPayment;
-    public PremiumDetails() {} // Default constructor for Jackson
-    PremiumDetails(double base, double full, double down, double remaining, double monthly) {
-        this.basePremium = base;
-        this.fullPaymentDiscount = full;
-        this.downPayment = down;
-        this.remainingBalance = remaining;
-        this.monthlyPayment = monthly;
-    }
-    public double getBasePremium() { return basePremium; }
-    public double getFullPaymentDiscount() { return fullPaymentDiscount; }
-    public double getDownPayment() { return downPayment; }
-    public double getRemainingBalance() { return remainingBalance; }
-    public double getMonthlyPayment() { return monthlyPayment; }
-    public void setBasePremium(double basePremium) { this.basePremium = basePremium; }
-    public void setFullPaymentDiscount(double fullPaymentDiscount) { this.fullPaymentDiscount = fullPaymentDiscount; }
-    public void setDownPayment(double downPayment) { this.downPayment = downPayment; }
-    public void setRemainingBalance(double remainingBalance) { this.remainingBalance = remainingBalance; }
-    public void setMonthlyPayment(double monthlyPayment) { this.monthlyPayment = monthlyPayment; }
 }
