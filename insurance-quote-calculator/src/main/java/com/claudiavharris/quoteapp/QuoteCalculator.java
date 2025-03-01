@@ -69,7 +69,7 @@ public class QuoteCalculator extends JFrame {
 
         inputPanel.add(new JLabel("Accidents?"));
         accidentCheckBox = new JCheckBox();
-        accidentCheckBox.setToolTipText("Check if you’ve had accidents in the last 5 years");
+        accidentCheckBox.setToolTipText("Check if you've had accidents in the last 5 years");
         inputPanel.add(accidentCheckBox);
         add(inputPanel, BorderLayout.NORTH);
 
